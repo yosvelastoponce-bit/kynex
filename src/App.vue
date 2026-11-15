@@ -376,7 +376,7 @@ onBeforeUnmount(() => {
         <h1 id="welcome-title">La Luna<br /><em>te espera.</em></h1>
         <p>Explora una región del polo sur lunar reconstruida con datos topográficos de NASA. La base KYNEX y los sistemas ambientales son simulaciones educativas.</p>
         <p v-if="siteLoadError" class="site-load-error" role="alert">{{ siteLoadError }} Recarga la página para volver a intentarlo.</p>
-        <button type="button" class="welcome-start" :disabled="loadingSite || !!siteLoadError" @click="begin">{{ loadingSite ? 'CARGANDO DEM SITE04…' : 'EXPLORAR SHACKLETON RIM' }} <span>↗</span></button>
+        <button type="button" class="welcome-start" :disabled="loadingSite || !!siteLoadError" @click="begin"><span class="welcome-start-label"><span class="welcome-start-symbol" aria-hidden="true">✦</span>{{ loadingSite ? 'CARGANDO DEM SITE04…' : 'INICIAR MISIÓN' }}</span><span class="welcome-start-arrow" aria-hidden="true">↗</span></button>
         <div class="welcome-tip"><kbd>W A S D</kbd> caminar <span>·</span> <kbd>RATÓN</kbd> mirar <span>·</span> <kbd>R</kbd> información</div>
       </div>
       <div class="welcome-footer"><span>SIMULACIÓN EDUCATIVA · SITE04 ES CANDIDATO, NO VALIDACIÓN</span><span>DESCUBRE · APRENDE · EXPLORA</span></div>
