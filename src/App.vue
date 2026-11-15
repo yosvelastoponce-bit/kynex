@@ -23,6 +23,7 @@ import { DATA_PROVENANCE } from './world/DataProvenance.js'
 const viewport = ref(null)
 const running = ref(false)
 const started = ref(false)
+const selectedWorld = ref('moon')
 const dragMode = ref(false)
 const telemetry = reactive({ x: 0, z: 0, heading: 0, altitude: 0, fps: 0 })
 const solar = reactive(solarState(0))
@@ -50,7 +51,7 @@ let lunarScene
 let interactionNoticeTimer
 
 async function begin() {
-  if (loadingSite.value || !lunarScene) return
+  if (selectedWorld.value !== 'moon' || loadingSite.value || !lunarScene) return
   siteLoadError.value = ''
   siteTerrain.value = lunarScene?.siteTerrain ?? null
   thermalSystem.value = lunarScene?.thermal ?? null
@@ -366,20 +367,27 @@ onBeforeUnmount(() => {
       </div>
     </div>
     </template>
-    <section v-else class="welcome-screen" aria-labelledby="welcome-title">
+    <section v-else class="welcome-screen" :class="{ 'welcome-mars': selectedWorld === 'mars' }" aria-labelledby="welcome-title">
       <header class="welcome-header">
-        <div class="welcome-brand"><span class="brand-mark">✦</span> KYNEX <span>/ LUNAR LAB</span></div>
-        <div class="welcome-location"><span /> POLO SUR LUNAR</div>
+        <div class="welcome-brand"><span class="brand-mark">✦</span> KYNEX <span>/ {{ selectedWorld === 'moon' ? 'LUNAR LAB' : 'MARS LAB' }}</span></div>
+        <div class="welcome-location"><span /> {{ selectedWorld === 'moon' ? 'POLO SUR LUNAR' : 'MARTE · PRÓXIMA ZONA' }}</div>
       </header>
       <div class="welcome-content">
-        <div class="welcome-overline">MISIÓN DE ENTRENAMIENTO · EXPLORACIÓN LUNAR</div>
-        <h1 id="welcome-title">La Luna<br /><em>te espera.</em></h1>
-        <p>Explora una región del polo sur lunar reconstruida con datos topográficos de NASA. La base KYNEX y los sistemas ambientales son simulaciones educativas.</p>
-        <p v-if="siteLoadError" class="site-load-error" role="alert">{{ siteLoadError }} Recarga la página para volver a intentarlo.</p>
-        <button type="button" class="welcome-start" :disabled="loadingSite || !!siteLoadError" @click="begin"><span class="welcome-start-label"><span class="welcome-start-symbol" aria-hidden="true">✦</span>{{ loadingSite ? 'CARGANDO DEM SITE04…' : 'INICIAR MISIÓN' }}</span><span class="welcome-start-arrow" aria-hidden="true">↗</span></button>
-        <div class="welcome-tip"><kbd>W A S D</kbd> caminar <span>·</span> <kbd>RATÓN</kbd> mirar <span>·</span> <kbd>R</kbd> información</div>
+        <div class="welcome-overline">MISIÓN DE ENTRENAMIENTO · EXPLORACIÓN {{ selectedWorld === 'moon' ? 'LUNAR' : 'MARCIANA' }}</div>
+        <h1 v-if="selectedWorld === 'moon'" id="welcome-title">La Luna<br /><em>te espera.</em></h1>
+        <h1 v-else id="welcome-title">Marte<br /><em>te espera.</em></h1>
+        <p v-if="selectedWorld === 'moon'">Explora una región del polo sur lunar reconstruida con datos topográficos de NASA. La base KYNEX y los sistemas ambientales son simulaciones educativas.</p>
+        <p v-else>La siguiente zona de entrenamiento está en preparación. Por ahora puedes descubrir su paisaje desde esta pantalla de inicio.</p>
+        <p v-if="selectedWorld === 'moon' && siteLoadError" class="site-load-error" role="alert">{{ siteLoadError }} Recarga la página para volver a intentarlo.</p>
+        <button v-if="selectedWorld === 'moon'" type="button" class="welcome-start" :disabled="loadingSite || !!siteLoadError" @click="begin"><span class="welcome-start-label"><span class="welcome-start-symbol" aria-hidden="true">✦</span>{{ loadingSite ? 'CARGANDO DEM SITE04…' : 'INICIAR MISIÓN' }}</span><span class="welcome-start-arrow" aria-hidden="true">↗</span></button>
+        <div v-else class="mars-coming-soon">MISIÓN MARCIANA <strong>PRÓXIMAMENTE</strong></div>
+        <div v-if="selectedWorld === 'moon'" class="welcome-tip"><kbd>W A S D</kbd> caminar <span>·</span> <kbd>RATÓN</kbd> mirar <span>·</span> <kbd>R</kbd> información</div>
       </div>
-      <div class="welcome-footer"><span>SIMULACIÓN EDUCATIVA · SITE04 ES CANDIDATO, NO VALIDACIÓN</span><span>DESCUBRE · APRENDE · EXPLORA</span></div>
+      <nav class="world-navigation" aria-label="Cambiar de mundo">
+        <button type="button" class="world-arrow world-arrow-left" :disabled="selectedWorld === 'moon'" aria-label="Ir a la Luna" @click="selectedWorld = 'moon'"><span aria-hidden="true">←</span><small>LUNA</small></button>
+        <button type="button" class="world-arrow world-arrow-right" :disabled="selectedWorld === 'mars'" aria-label="Ir a Marte" @click="selectedWorld = 'mars'"><small>MARTE</small><span aria-hidden="true">→</span></button>
+      </nav>
+      <div class="welcome-footer"><span>{{ selectedWorld === 'moon' ? 'SIMULACIÓN EDUCATIVA · SITE04 ES CANDIDATO, NO VALIDACIÓN' : 'VISTA CONCEPTUAL · MISIÓN MARCIANA EN PREPARACIÓN' }}</span><span>DESCUBRE · APRENDE · EXPLORA</span></div>
     </section>
   </main>
 </template>
