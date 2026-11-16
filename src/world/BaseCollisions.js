@@ -1,12 +1,14 @@
 import { heightAt } from './LunarTerrain.js'
 import { OUTPOST, localBasePosition } from './BasePlacement.js'
+import { LAB_OBSTACLES, inLaboratory } from './laboratory/LaboratoryLayout.js'
 
 const PLAYER_RADIUS = 0.33
 const wall = (x1, x2, z1, z2) => ({ x1, x2, z1, z2 })
 
 export function baseObstacles(airlock) {
   const obstacles = [
-    wall(-5.15, -4.9, -1.9, 1.9), wall(4.9, 5.15, -1.9, 1.9),
+    wall(-5.15, -4.9, -1.9, -.9), wall(-5.15, -4.9, .9, 1.9), wall(4.9, 5.15, -1.9, 1.9),
+    ...LAB_OBSTACLES,
     wall(-5.1, 5.1, -2.02, -1.78),
     wall(-5.1, -1.02, 1.78, 2.02), wall(1.02, 5.1, 1.78, 2.02),
     wall(-1.37, -1.13, 1.86, 5.16), wall(1.13, 1.37, 1.86, 5.16),
@@ -53,6 +55,7 @@ export function resolveBaseMovement(previous, next, airlock, origin = OUTPOST) {
 
 export function baseGroundHeight(x, z, floorY, sampleHeight = heightAt, origin = OUTPOST) {
   const p = localBasePosition(x, z, origin)
+  if (p.x >= -10.15 && p.x <= -6 && Math.abs(p.z) <= 3.15) return floorY
   if (p.x >= -6.1 && p.x <= 6.1 && p.z >= -3.2 && p.z <= 5.4) return floorY
   if (Math.abs(p.x) <= 1.4 && p.z > 5.4 && p.z < 9.4) {
     const t = (p.z - 5.4) / 4
@@ -63,6 +66,7 @@ export function baseGroundHeight(x, z, floorY, sampleHeight = heightAt, origin =
 
 export function baseZone(x, z, origin = OUTPOST) {
   const p = localBasePosition(x, z, origin)
+  if (inLaboratory(p.x, p.z)) return 'habitat'
   if (Math.abs(p.x) < 1.1 && p.z > 2.1 && p.z < 4.9) return 'airlock'
   if (Math.abs(p.x) < 4.7 && Math.abs(p.z) < 1.7) return 'habitat'
   return 'surface'

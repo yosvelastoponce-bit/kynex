@@ -19,7 +19,7 @@ export const ECLSS_CONFIG = Object.freeze({
 })
 
 const EQUIPMENT_W = Object.freeze({ regulator: 35, ventilation: 170, scrubber: 470,
-  generator: 760, condenser: 130, thermal: 1000 })
+  generator: 760, condenser: 130, thermal: 1000, science: 250, laboratory: 0 })
 
 export class LifeSupportSystem {
   constructor(config = {}) {
@@ -37,7 +37,10 @@ export class LifeSupportSystem {
       wastewater: 0, vented: { O2: 0, N2: 0, CO2: 0, H2O: 0 } }
     this.capacity = { O2: 40, N2: 30, water: 120, hydrogen: 20, capturedCO2: 100 }
     this.enabled = { regulator: true, ventilation: false, scrubber: false,
-      generator: false, condenser: true, thermal: true }
+      generator: false, condenser: true, thermal: true, science: false, laboratory: false }
+    this.laboratoryPowerW = 0
+    this.laboratoryEnergyKWh = 0
+    this.scienceFaultW = 0
     this.failed = Object.fromEntries(Object.keys(this.enabled).map(key => [key, false]))
     this.operating = Object.fromEntries(Object.keys(this.enabled).map(key => [key, false]))
     this.blocked = Object.fromEntries(Object.keys(this.enabled).map(key => [key, '']))
@@ -60,6 +63,11 @@ export class LifeSupportSystem {
   setFailure(name, value) { if (Object.hasOwn(this.failed, name)) this.failed[name] = !!value }
   setLeak(fractionPerDay) { this.leakFractionPerDay = Math.max(0, fractionPerDay) }
   setPowerLimit(watts) { this.powerLimitW = Math.max(0, watts) }
+  setScienceFault(watts) { this.scienceFaultW = Math.max(0, Number(watts) || 0) }
+  setLaboratoryPower(watts) {
+    this.laboratoryPowerW = Math.max(0, Math.min(1000, Number(watts) || 0))
+    this.enabled.laboratory = this.laboratoryPowerW > 0
+  }
 
   // Airlock transition accounting: no gas is silently restored after venting.
   onAirlockTransition(before, after) {
@@ -97,17 +105,19 @@ export class LifeSupportSystem {
     this.blocked.scrubber = this.storage.capturedCO2 >= this.capacity.capturedCO2 ? 'CAPTURA LLENA' : ''
     this.blocked.regulator = this.storage.O2 <= 0 && this.storage.N2 <= 0 ? 'SIN GAS' : ''
     const demandW = Object.entries(this.enabled).reduce((sum, [key, on]) =>
-      sum + (on && !this.failed[key] && !this.blocked[key] ? EQUIPMENT_W[key] : 0), 0)
+      sum + (on && !this.failed[key] && !this.blocked[key] ? EQUIPMENT_W[key] + (key === 'science' ? this.scienceFaultW : key === 'laboratory' ? this.laboratoryPowerW : 0) : 0), 0)
     for (const [key, watts] of Object.entries(EQUIPMENT_W)) {
-      const working = this.enabled[key] && !this.failed[key] && !this.blocked[key] && availableW >= watts
+      const drawW = watts + (key === 'science' ? this.scienceFaultW : key === 'laboratory' ? this.laboratoryPowerW : 0)
+      const working = this.enabled[key] && !this.failed[key] && !this.blocked[key] && availableW >= drawW
       this.operating[key] = working
-      if (working) { availableW -= watts; usedW += watts }
+      if (working) { availableW -= drawW; usedW += drawW }
     }
     const solarUsedW = Math.min(usedW, solarW)
     this.batteryKWh = Math.max(0, this.batteryKWh - (usedW - solarUsedW) * hours / 1000)
     this.batteryKWh = Math.min(c.batteryCapacityKWh,
       this.batteryKWh + Math.max(0, solarW - usedW) * hours / 1000)
     this.energyUsedKWh += usedW * hours / 1000
+    if (this.operating.laboratory) this.laboratoryEnergyKWh += this.laboratoryPowerW * hours / 1000
     this.lastPower = { availableW: Math.min(this.powerLimitW, solarW + batteryW), demandW, usedW, solarW }
 
     const crew = c.occupied ? c.crew : 0
@@ -209,8 +219,50 @@ export class LifeSupportSystem {
   snapshot() {
     return { cabin: this.cabin.snapshot(), lock: this.lock.snapshot(), storage: structuredClone(this.storage),
       enabled: { ...this.enabled }, operating: { ...this.operating }, failed: { ...this.failed }, blocked: { ...this.blocked },
-      power: { ...this.lastPower, batteryKWh: this.batteryKWh, energyUsedKWh: this.energyUsedKWh },
+      power: { ...this.lastPower, batteryKWh: this.batteryKWh, energyUsedKWh: this.energyUsedKWh, scienceFaultW: this.scienceFaultW,
+        laboratoryPowerW: this.laboratoryPowerW, laboratoryEnergyKWh: this.laboratoryEnergyKWh },
       flows: { ...this.flows }, alerts: this.alerts(), stable: this.stable(),
       crew: this.config.crew, occupied: this.config.occupied, days: this.days }
+  }
+  serialize() {
+    return { cabin: { moles: { ...this.cabin.moles }, temperatureK: this.cabin.temperatureK, volumeM3: this.config.cabinVolumeM3 },
+      lock: { moles: { ...this.lock.moles }, temperatureK: this.lock.temperatureK },
+      storage: structuredClone(this.storage), enabled: { ...this.enabled }, failed: { ...this.failed },
+      batteryKWh: this.batteryKWh, energyUsedKWh: this.energyUsedKWh, flows: { ...this.flows },
+      days: this.days, scienceFaultW: this.scienceFaultW, laboratoryPowerW:this.laboratoryPowerW, laboratoryEnergyKWh:this.laboratoryEnergyKWh }
+  }
+  restore(saved) {
+    if (!saved || typeof saved !== 'object') return false
+    for (const [model, record] of [[this.cabin, saved.cabin], [this.lock, saved.lock]]) {
+      if (!record || !Number.isFinite(record.temperatureK) || record.temperatureK < 150) return false
+      for (const gas of GAS_NAMES) if (!Number.isFinite(record.moles?.[gas]) || record.moles[gas] < 0) return false
+    }
+    for (const [model, record] of [[this.cabin, saved.cabin], [this.lock, saved.lock]]) {
+      model.temperatureK = record.temperatureK
+      model.moles = { ...record.moles }
+      // Legacy saves predate the fitted-out pressurized lab. Preserve partial pressures
+      // when adding its SCENARIO initial atmosphere, once; the new volume is serialized.
+      if (model === this.cabin) {
+        const oldVolume = Number(record.volumeM3) || 100
+        for (const gas of GAS_NAMES) model.moles[gas] *= this.config.cabinVolumeM3 / oldVolume
+      }
+    }
+    for (const key of Object.keys(this.storage)) {
+      if (key === 'vented') {
+        for (const gas of GAS_NAMES) this.storage.vented[gas] = Math.max(0, Number(saved.storage?.vented?.[gas]) || 0)
+      } else this.storage[key] = Math.max(0, Number(saved.storage?.[key]) || 0)
+    }
+    for (const key of Object.keys(this.enabled)) {
+      this.enabled[key] = !!saved.enabled?.[key]
+      this.failed[key] = !!saved.failed?.[key]
+    }
+    this.batteryKWh = Math.max(0, Math.min(this.config.batteryCapacityKWh, Number(saved.batteryKWh) || 0))
+    this.energyUsedKWh = Math.max(0, Number(saved.energyUsedKWh) || 0)
+    for (const key of Object.keys(this.flows)) this.flows[key] = Math.max(0, Number(saved.flows?.[key]) || 0)
+    this.days = Math.max(0, Number(saved.days) || 0)
+    this.setScienceFault(saved.scienceFaultW)
+    this.laboratoryEnergyKWh = Math.max(0, Number(saved.laboratoryEnergyKWh) || 0)
+    this.setLaboratoryPower(saved.laboratoryPowerW)
+    return true
   }
 }

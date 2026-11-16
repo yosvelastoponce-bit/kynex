@@ -30,3 +30,18 @@ npm run build
 El DEM optimizado se encuentra en `public/assets/site04-dem.bin`. El GeoTIFF original del usuario está en `C:\PROYECTOS\KYNEX-Junior-Astronaut\INVESTIGACIÓN 2\Site04_final_adj_5mpp_surf.tif`; no se carga directamente en el navegador. La procedencia se registra en `src/world/DataProvenance.js`.
 
 Los archivos procedurales antiguos permanecen aislados para no romper pruebas históricas o utilidades compartidas. `LunarScene.js`, `PlayerController.js` y `PolarMap.vue` ya no los cargan en la experiencia pública.
+
+
+## Laboratorio de recursos lunares
+
+RESOURCE LAB 01 está conectado al extremo izquierdo del hábitat. Camina por el
+paso interior, mira un instrumento y pulsa E. Permite registrar muestras Apollo,
+consultar análisis publicados e investigar soporte vital, energía y blindaje.
+Los resultados se guardan en la bitácora del laboratorio junto con la partida.
+
+El menú ofrece las cuatro misiones cortas y el recorrido de supervivencia de
+24 horas; el laboratorio es opcional en ambos. Los ensayos usan la red eléctrica
+existente y no añaden oxígeno respirable ni protección automáticamente.
+
+Consulta [KYNEX-LUNAR-RESOURCE-LAB.md](KYNEX-LUNAR-RESOURCE-LAB.md) para las fuentes,
+fórmulas, parámetros asumidos, archivos Blender/GLB y limitaciones del prototipo.

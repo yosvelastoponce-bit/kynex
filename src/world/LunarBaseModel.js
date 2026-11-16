@@ -61,23 +61,6 @@ export function createLunarBaseModel(floorY, sampleHeight = heightAt, origin = O
     return mesh
   }
   const localGround = (x, z) => sampleHeight(origin.x + x, origin.z + z) - floorY
-  const label = (message, x, y, z, width = 2.1) => {
-    const canvas = document.createElement('canvas')
-    canvas.width = 512; canvas.height = 112
-    const ctx = canvas.getContext('2d')
-    ctx.fillStyle = '#142328'; ctx.fillRect(0, 0, 512, 112)
-    ctx.strokeStyle = '#8cd5bc'; ctx.lineWidth = 5; ctx.strokeRect(4, 4, 504, 104)
-    ctx.fillStyle = '#d9ede0'; ctx.font = 'bold 35px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
-    ctx.fillText(message, 256, 58)
-    const texture = new THREE.CanvasTexture(canvas)
-    texture.colorSpace = THREE.SRGBColorSpace
-    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(width, width * 112 / 512),
-      new THREE.MeshBasicMaterial({ map: texture, transparent: false, side: THREE.DoubleSide }))
-    mesh.position.set(x, y, z)
-    root.add(mesh)
-    return mesh
-  }
-
   // Level foundation. Every visible support reaches its own sampled ground point.
   box(root, 12.4, 0.34, 9, 0, -0.17, 1.1, mat.deck, true)
   for (const x of [-5.5, -2, 2, 5.5]) for (const z of [-2.8, 4.4]) {
@@ -99,10 +82,14 @@ export function createLunarBaseModel(floorY, sampleHeight = heightAt, origin = O
   const shell = new THREE.Mesh(shellGeometry(), mat.shell)
   shell.castShadow = true; shell.receiveShadow = true
   root.add(shell)
-  for (const x of [-5, 5]) {
+  for (const x of [5]) {
     const end = cylinder(root, 2, 2, 0.17, x, 1, 0, mat.shell, 40, true)
     end.rotation.z = Math.PI / 2
   }
+  // Inner pressure connection to RESOURCE LAB 01. Clear aperture z ±0.9, y 0..2.5.
+  for (const z of [-1.45, 1.45]) box(root, .17, 3.4, 1.1, -5, 1.3, z, mat.shell, true)
+  box(root, .17, .5, 1.8, -5, 2.75, 0, mat.shell, true)
+  box(root, .17, .8, 1.8, -5, -.4, 0, mat.shell, true)
   for (const x of [-4.65, -2.5, 2.5, 4.65]) {
     const hoop = new THREE.Mesh(new THREE.TorusGeometry(2.025, 0.045, 8, 40), mat.frame)
     hoop.position.set(x, 1, 0); hoop.rotation.y = Math.PI / 2
@@ -110,7 +97,6 @@ export function createLunarBaseModel(floorY, sampleHeight = heightAt, origin = O
   }
   for (const x of [-4.1, 4.1]) box(root, 0.18, 0.08, 3.65, x, 2.96, 0, mat.gold)
   box(root, 9.6, 0.14, 3.35, 0, -0.01, 0, mat.inner)
-  label(origin.name === 'KYNEX OUTPOST 01' ? 'KYNEX / OUTPOST 01' : 'PUNTO DE APOYO', -3.2, 1.45, 1.96, 2.7)
 
   // Airlock chamber, side panels and two separate sliding doors.
   box(root, 2.5, 0.13, 3.3, 0, 0.01, 3.55, mat.inner)
@@ -138,7 +124,6 @@ export function createLunarBaseModel(floorY, sampleHeight = heightAt, origin = O
   const entryLight = new THREE.PointLight(0xcde8dc, 3.2, 8)
   entryLight.position.set(0, 3.08, 6.0); root.add(entryLight)
   box(root, 0.8, 0.08, 0.3, 0, 3.04, 5.7, mat.white)
-  label('ESCLUSA / EVA', 0, 2.9, 5.2, 1.6)
 
   // Interior stations line the sides so the central walking route stays clear.
   for (const x of [-2.8, 2.8]) {
@@ -153,11 +138,6 @@ export function createLunarBaseModel(floorY, sampleHeight = heightAt, origin = O
   box(root, 1.8, 1.75, 0.78, -3.4, 0.88, 1.25, mat.frame)
   for (const x of [-3.9, -3.4, -2.9]) box(root, 0.32, 0.24, 0.05, x, 1.15, 1.66, mat.mint)
   for (const x of [3.15, 3.75]) box(root, 0.9, 1.35, 0.75, x, 0.68, 1.28, mat.deck)
-  label('ECLSS', -3.35, 2.03, 1.72, 1.25)
-  label('O2 / ELECTROLISIS', -3.75, 1.75, 1.73, 1.3)
-  label('CAPTURA CO2', -2.55, 1.75, 1.73, 1.3)
-  label('O2 / N2 RESERVAS', 3.25, 1.83, 1.73, 1.5)
-  label('CONTROL AMBIENTAL', -3.35, 1.55, -0.43, 1.9)
   const activityIndicators = {
     sample: new THREE.MeshBasicMaterial({ color: 0xa2784f }),
     garden: new THREE.MeshBasicMaterial({ color: 0xa2784f }),
@@ -173,7 +153,6 @@ export function createLunarBaseModel(floorY, sampleHeight = heightAt, origin = O
     root.add(sample)
   }
   box(root, 0.12, 0.12, 0.1, 2.05, 1.12, -0.75, activityIndicators.sample)
-  label('LAB / ROCAS', 2.85, 1.45, -0.48, 1.55)
   for (const x of [3.15, 3.75]) {
     box(root, 0.48, 0.16, 0.5, x, 1.46, 1.28, mat.dark)
     box(root, 0.43, 0.045, 0.44, x, 1.56, 1.28, mat.gold)
@@ -187,7 +166,6 @@ export function createLunarBaseModel(floorY, sampleHeight = heightAt, origin = O
     }
   }
   box(root, 0.12, 0.12, 0.1, 2.55, 1.7, 0.95, activityIndicators.garden)
-  label('CULTIVO LUNAR', 3.45, 2.16, 0.88, 1.75)
   for (const [x, angle] of [[0.52, -0.3], [0.88, 0.3], [0.7, 0]]) {
     const leg = cylinder(root, 0.025, 0.035, 0.72, x, 0.46, -1.48, mat.frame, 8)
     leg.rotation.z = angle
@@ -197,7 +175,6 @@ export function createLunarBaseModel(floorY, sampleHeight = heightAt, origin = O
   const telescopeLens = cylinder(root, 0.17, 0.17, 0.08, 0.7, 1.45, -0.86, mat.blue, 16)
   telescopeLens.rotation.x = Math.PI / 2
   box(root, 0.12, 0.12, 0.1, 0.97, 1.73, -0.98, activityIndicators.observatory)
-  label('OBSERVATORIO', 0.7, 2.02, -1.7, 1.8)
   const indicatorMaterials = {
     generator: new THREE.MeshBasicMaterial({ color: 0xa2784f }),
     scrubber: new THREE.MeshBasicMaterial({ color: 0xa2784f }),
@@ -224,7 +201,6 @@ export function createLunarBaseModel(floorY, sampleHeight = heightAt, origin = O
   box(root, 5, 2.7, 3, 13, techGround + 1.35, 0, mat.shell, true)
   box(root, 5.1, 0.12, 3.1, 13, techGround + 2.73, 0, mat.frame)
   for (const x of [11.2, 12.1, 13.0, 13.9, 14.8]) box(root, 0.08, 1.65, 0.06, x, techGround + 1.45, 1.55, mat.frame)
-  label('ECLSS / SOPORTE VITAL', 13, techGround + 2.1, 1.57, 2.7)
   box(root, 5, 0.14, 0.18, 7.9, techGround + 0.8, 0, mat.gold)
 
   // A steerable, nearly upright array is visually appropriate for low polar Sun.
@@ -238,7 +214,6 @@ export function createLunarBaseModel(floorY, sampleHeight = heightAt, origin = O
     box(solarPivot, 2.02, 0.035, 0.13, x, 0.22, 0, mat.frame)
     cylinder(root, 0.08, 0.1, 1.55, -15 + x, localGround(-15 + x, -2) + 0.78, -2, mat.frame)
   }
-  label('ARREGLO SOLAR', -15, localGround(-15, 1.5) + 0.65, 1.5, 2)
 
   // Batteries are set away from the entry route and enclosed conceptually.
   for (const x of [10.8, 12]) {
@@ -246,7 +221,6 @@ export function createLunarBaseModel(floorY, sampleHeight = heightAt, origin = O
     box(root, 1.05, 1.15, 1.55, x, ground + 0.58, 8, mat.frame, true)
     box(root, 0.82, 0.08, 0.05, x, ground + 0.74, 8.8, mat.gold)
   }
-  label('BATERIAS', 11.4, localGround(11.4, 8.85) + 1.38, 8.85, 1.6)
 
   // Communications mast and directional dish.
   const antennaGround = localGround(17, -8)
@@ -255,7 +229,6 @@ export function createLunarBaseModel(floorY, sampleHeight = heightAt, origin = O
   const dish = cylinder(root, 1.05, 0.22, 0.35, 17, antennaGround + 5.3, -7.65, mat.white, 24)
   dish.rotation.x = Math.PI / 2
   box(root, 0.7, 0.38, 0.55, 17, antennaGround + 0.25, -8, mat.dark)
-  label('COMUNICACIONES', 17, antennaGround + 1.2, -7.55, 2.1)
 
   // Rear heat rejection surface. This does not model interior heat transport.
   for (const x of [-3.2, -2.4, -1.6, -0.8]) {
@@ -263,9 +236,7 @@ export function createLunarBaseModel(floorY, sampleHeight = heightAt, origin = O
     box(root, 0.55, 2.1, 0.09, x, ground + 1.35, -4.2, mat.frame, true)
     box(root, 0.43, 1.75, 0.1, x, ground + 1.35, -4.15, mat.dark)
   }
-  label('RADIADOR', -2, localGround(-2, -4.1) + 2.7, -4.1, 1.5)
   box(root, 1.25, 0.85, 0.65, 2.6, 0.43, 6.1, mat.frame)
-  label('CONTROL DE POLVO', 2.6, 1.35, 6.46, 1.8)
 
   const fieldSample = new THREE.Group()
   fieldSample.position.set(4, localGround(4, 11.5) + 0.34, 11.5)
@@ -283,7 +254,6 @@ export function createLunarBaseModel(floorY, sampleHeight = heightAt, origin = O
     fieldSample.add(grain)
   }
   root.add(fieldSample)
-  label('ROCA / E', 4, localGround(4, 11.5) + 1.15, 11.5, 1.35)
 
   let innerPosition = 0, outerPosition = 0
   function update(airlock, solar, dt, eclss, discoveries, sampleMission) {

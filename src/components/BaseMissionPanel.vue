@@ -8,8 +8,8 @@ const currentSample = computed(() => props.base.sampleMission?.steps?.find(step 
 </script>
 
 <template>
-  <aside class="base-mission" aria-label="Misión de inspección del puesto lunar">
-    <div class="base-mission-heading">MISIÓN 01 / INSPECCIÓN DEL PUESTO</div>
+  <aside class="base-mission" aria-label="Retos del puesto lunar">
+    <div class="base-mission-heading">RETO DE LA BASE / INSPECCIÓN DEL PUESTO</div>
     <div class="base-mission-progress">{{ base.mission?.count ?? 0 }} / {{ base.mission?.total ?? 8 }} <span>{{ base.mission?.done ? 'COMPLETADA' : 'EN CURSO' }}</span></div>
     <ol class="base-mission-steps">
       <li v-for="step in base.mission?.steps ?? []" :key="step.id" :class="{ done: step.done, current: current?.id === step.id }"><span>{{ step.done ? '✓' : '◇' }}</span>{{ step.label }}</li>
@@ -27,7 +27,7 @@ const currentSample = computed(() => props.base.sampleMission?.steps?.find(step 
       <div v-if="base.sampleMission.status === 'carried'" class="base-sample-carry">ROCA EN TU MOCHILA · VE AL LABORATORIO</div>
     </div>
     <div v-if="base.mission?.discoveries" class="base-discovery">
-      <div class="base-mission-heading">MISIÓN 03 / PEQUEÑOS CIENTÍFICOS</div>
+      <div class="base-mission-heading">RETO DE LA BASE / PEQUEÑOS CIENTÍFICOS</div>
       <div class="base-mission-progress">{{ base.mission.discoveries.count }} / {{ base.mission.discoveries.total }} <span>{{ base.mission.discoveries.done ? 'COMPLETADA' : 'EN CURSO' }}</span></div>
       <ol class="base-discovery-steps">
         <li v-for="step in base.mission.discoveries.steps" :key="step.id" :class="{ done: step.done, current: currentDiscovery?.id === step.id }"><span>{{ step.done ? '✓' : '◇' }}</span>{{ step.label }}</li>
@@ -37,6 +37,6 @@ const currentSample = computed(() => props.base.sampleMission?.steps?.find(step 
         <span v-for="badge in base.mission.discoveries.badges" :key="badge.id" :class="{ earned: badge.earned }"><b>{{ badge.earned ? '★' : '☆' }}</b>{{ badge.name }}</span>
       </div>
     </div>
-    <div v-if="base.mission02" class="base-mission-two"><div class="base-mission-heading">MISIÓN 02 / SOPORTE VITAL</div><div class="base-mission-progress">{{ base.mission02.count }} / {{ base.mission02.total }} <span>{{ base.mission02.done ? 'COMPLETADA' : base.mission02.count ? 'EN CURSO' : 'PENDIENTE' }}</span></div><div class="base-mission-two-current">{{ current02?.label ?? 'Condiciones verificadas' }}</div><div v-if="base.mission02.stableMinutes > 0 && !base.mission02.done" class="base-mission-two-current">ESTABILIDAD {{ base.mission02.stableMinutes.toFixed(0) }} / 60 min simulados</div></div>
+    <div v-if="base.mission02" class="base-mission-two"><div class="base-mission-heading">RETO DE LA BASE / SOPORTE VITAL</div><div class="base-mission-progress">{{ base.mission02.count }} / {{ base.mission02.total }} <span>{{ base.mission02.done ? 'COMPLETADA' : base.mission02.count ? 'EN CURSO' : 'PENDIENTE' }}</span></div><div class="base-mission-two-current">{{ current02?.label ?? 'Condiciones verificadas' }}</div><div v-if="base.mission02.stableMinutes > 0 && !base.mission02.done" class="base-mission-two-current">ESTABILIDAD {{ base.mission02.stableMinutes.toFixed(0) }} / 60 min simulados</div></div>
   </aside>
 </template>

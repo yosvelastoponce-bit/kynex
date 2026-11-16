@@ -12,11 +12,25 @@ const props = defineProps({
   sunElevation: { type: Number, required: true },
   baseX: { type: Number, required: true },
   baseZ: { type: Number, required: true },
+  trainingPoints: { type: Array, default: () => [] },
 })
+const emit = defineEmits(['inspect-point', 'layer-change'])
 const canvas = ref(null)
 const shadowCanvas = ref(null)
 const layer = ref('image')
 const SHADOW_SIZE = 120
+function selectLayer(value) { layer.value = value; emit('layer-change', value) }
+function inspectPoint(event) {
+  if (layer.value === 'image') return
+  const rect = event.currentTarget.getBoundingClientRect()
+  const x = -SITE04_HALF_SIZE_METERS + (event.clientX - rect.left) / rect.width * SITE04_HALF_SIZE_METERS * 2
+  const z = -SITE04_HALF_SIZE_METERS + (event.clientY - rect.top) / rect.height * SITE04_HALF_SIZE_METERS * 2
+  emit('inspect-point', { x, z })
+}
+function markerStyle(point) {
+  return { left: `${50 + point.x / (SITE04_HALF_SIZE_METERS * 2) * 100}%`,
+    top: `${50 + point.z / (SITE04_HALF_SIZE_METERS * 2) * 100}%` }
+}
 let lastSun = null
 const playerStyle = computed(() => ({
   left: `${50 + props.x / (SITE04_HALF_SIZE_METERS * 2) * 100}%`,
@@ -90,11 +104,11 @@ watch(() => [props.sunAzimuth, props.sunElevation], () => drawShadows())
 <template>
   <div class="site04-map-panel" aria-label="Mapa del sector candidato Site04">
     <div class="site04-map-controls">
-      <button type="button" :class="{ active: layer === 'image' }" :aria-pressed="layer === 'image'" @click="layer = 'image'">SUELO REAL</button>
-      <button type="button" :class="{ active: layer === 'slope' }" :aria-pressed="layer === 'slope'" @click="layer = 'slope'">PENDIENTE</button>
-      <button type="button" :class="{ active: layer === 'elevation' }" :aria-pressed="layer === 'elevation'" @click="layer = 'elevation'">ALTURA</button>
+      <button type="button" :class="{ active: layer === 'image' }" :aria-pressed="layer === 'image'" @click="selectLayer('image')">SUELO REAL</button>
+      <button type="button" :class="{ active: layer === 'slope' }" :aria-pressed="layer === 'slope'" @click="selectLayer('slope')">PENDIENTE</button>
+      <button type="button" :class="{ active: layer === 'elevation' }" :aria-pressed="layer === 'elevation'" @click="selectLayer('elevation')">ALTURA</button>
     </div>
-    <div class="site04-map-canvas">
+    <div class="site04-map-canvas" :class="{ 'site04-map-inspectable': layer !== 'image' }" @click="inspectPoint">
       <img v-show="layer === 'image'" class="site04-photo" src="/assets/site04-lroc-nac.png" alt="Vista orbital real LROC NAC del suelo de Site04, alineada con el sector del DEM" />
       <canvas v-show="layer !== 'image'" ref="canvas" :width="SITE04_GRID_WIDTH" :height="SITE04_GRID_WIDTH" :aria-label="layer === 'slope' ? 'Mapa de pendiente: verde menor de 10 grados, ámbar 10 a 15, rojo mayor de 15' : 'Mapa de elevación del sector Site04'" />
       <canvas v-show="layer === 'image'" ref="shadowCanvas" class="site04-shadow-overlay" :width="SHADOW_SIZE" :height="SHADOW_SIZE" aria-label="Sombras simuladas del relieve según la posición solar educativa" />
@@ -102,6 +116,7 @@ watch(() => [props.sunAzimuth, props.sunElevation], () => drawShadows())
       <span class="site04-base-marker" :style="baseStyle" title="Puesto educativo ilustrativo" aria-label="Puesto educativo ilustrativo">◆</span>
       <span class="site04-sample-marker" :style="sampleStyle" title="Muestra de entrenamiento" aria-label="Muestra de entrenamiento">●</span>
       <span class="site04-player-marker" :style="playerStyle" title="Tu posición y dirección" aria-label="Tu posición y dirección"><i class="polar-map-direction" :style="directionStyle" /></span>
+      <span v-for="(point, index) in trainingPoints" :key="index" class="site04-training-point" :style="markerStyle(point)" :aria-label="`Punto ${index ? 'B' : 'A'}`">{{ index ? 'B' : 'A' }}</span>
     </div>
     <div v-if="layer === 'image'" class="site04-legend"><span>LROC NAC · 2011</span><span>SOMBRA DEM · SOL {{ sunAzimuth.toFixed(1) }}°</span></div>
     <div v-else-if="layer === 'slope'" class="site04-legend"><span><i class="site04-legend-green" />0–10°</span><span><i class="site04-legend-amber" />10–15°</span><span><i class="site04-legend-red" />15–{{ site.metrics.maximumSlopeDegrees.toFixed(0) }}°</span></div>

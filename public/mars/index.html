@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#170e0a" />
+    <title>MARS FRONTIER — Exploración</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main id="world" aria-label="Superficie tridimensional de Marte"></main>
+    <div id="helmetOverlay" class="helmet-overlay" aria-hidden="true"></div>
+
+    <div id="loadError" class="load-error hidden" role="alert"></div>
+
+    <section id="intro" class="intro-screen">
+      <div class="intro-shade"></div>
+      <div class="intro-content">
+        <h1>MARS <span>FRONTIER</span></h1>
+        <p class="intro-coordinates">ARCADIA PLANITIA · 47.2° N, 184.3° E</p>
+        <p class="intro-description">
+          Has aterrizado en una de las regiones más prometedoras del planeta rojo. Tu misión es explorar el terreno,
+          recolectar muestras geológicas y poner a prueba el rover en condiciones extremas.
+        </p>
+        <p class="intro-description">
+          Pero Marte no perdona. Las tormentas de polvo pueden reducir la visibilidad a cero en cuestión de minutos.
+          El hábitat <strong>AP-1</strong> es tu único refugio seguro.
+        </p>
+        <button id="startButton" class="start-button" type="button" disabled>
+          INICIAR EXPLORACIÓN
+        </button>
+        <p id="startupStatus" class="startup-status">Preparando el entorno marciano…</p>
+        <p class="intro-note">Nota: Simulación interactiva. Los análisis, la telemetría y el clima son modelos del juego.</p>
+      </div>
+    </section>
+
+    <div id="stormRescue" class="storm-rescue hidden" role="status" aria-live="assertive">
+      <div>
+        <strong>TE HAS PERDIDO EN LA TORMENTA</strong>
+        <p>Rescate en curso · Regresando al laboratorio de AP-1</p>
+      </div>
+    </div>
+
+    <section id="hud" class="hud hidden" aria-label="Interfaz de exploración">
+      <div class="hud-top">
+        <div class="mission-card">
+          <p id="missionKicker" class="hud-kicker">MISIÓN 01 · PRIMEROS PASOS EN MARTE</p>
+          <h2 id="missionTitle">Encuentra la base científica</h2>
+          <p id="missionObjective">Misión 01: Llegar a AP-1 y evaluar la estabilidad del terreno para el despliegue de paneles solares.</p>
+          <p id="resourceObjective" class="mission-secondary-objective" role="status">Recolecta muestras para localizar recursos hídricos (0/5)</p>
+          <div class="mission-location">ARCADIA PLANITIA <span>·</span> AP-1</div>
+        </div>
+        <div class="suit-card">
+          <div class="suit-card-heading"><span class="status-dot"></span> TRAJE EVA <span id="suitState">ESTABLE</span></div>
+          <div class="suit-meter-row">
+            <span>O₂</span>
+            <div class="meter"><span id="oxygenBar"></span></div>
+            <strong id="oxygenValue">100%</strong>
+          </div>
+          <div class="suit-meter-row">
+            <span>ENERGÍA</span>
+            <div class="meter battery-meter"><span id="batteryBar"></span></div>
+            <strong id="batteryValue">100%</strong>
+          </div>
+          <div class="suit-temperature"><span>TEMP. EXTERIOR · EST.</span><strong>≈ −63 °C</strong></div>
+        </div>
+      </div>
+
+      <div class="reticle" aria-hidden="true"><span></span></div>
+      <div id="interactionPrompt" class="interaction-prompt hidden" role="status"></div>
+      <div id="toast" class="toast hidden" role="status"></div>
+      <div id="weatherHud" class="weather-hud hidden" role="status" aria-live="polite"></div>
+      <section id="roverHud" class="vehicle-hud hidden" aria-label="Telemetría del rover">
+        <div class="vehicle-hud-heading"><span>ROVER · AP-1</span><strong id="roverSpeed">0,0 m/s</strong></div>
+        <div class="vehicle-hud-row"><span>BATERÍA</span><div class="meter battery-meter"><span id="roverBatteryBar"></span></div><strong id="roverBatteryValue">100%</strong></div>
+        <div class="vehicle-hud-row"><span>BASE</span><strong id="roverDistance">0 m</strong></div>
+        <p id="roverAlert">W avanzar · S retroceder · A izquierda · D derecha · ESPACIO frenar · E entrar/salir · F especificaciones</p>
+      </section>
+      <button id="journalButton" class="journal-button" type="button" aria-label="Abrir investigaciones">INVESTIGACIONES <kbd>J</kbd></button>
+
+      <div class="hud-bottom">
+        <div class="minimap-card">
+          <div class="minimap-heading"><span>MAPA DE CAMPO</span><span id="distanceValue">BASE · -- m</span></div>
+          <div id="minimapCoordinates" class="minimap-coordinates">EXPLORADOR · 47,2000° N · 184,3000° E · −1,5 km</div>
+          <canvas id="mapCanvas" width="176" height="132" aria-label="Mapa local de la misión"></canvas>
+          <div class="map-legend"><span><i class="legend-player"></i> TÚ</span><span><i class="legend-base"></i> BASE</span><span><i class="legend-rover"></i> ROVER</span><button id="openMapButton" type="button">MAPA <kbd>M</kbd></button></div>
+        </div>
+        <div class="control-hints">
+          <span id="pointerStatus" class="pointer-status">RATÓN LIBRE · ARRASTRA</span>
+          <span class="on-foot-only"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> MOVER</span>
+          <span class="rover-only"><kbd>W</kbd> AVANZAR</span>
+          <span class="rover-only"><kbd>S</kbd> RETROCEDER</span>
+          <span class="rover-only"><kbd>A</kbd> IZQUIERDA</span>
+          <span class="rover-only"><kbd>D</kbd> DERECHA</span>
+          <span><kbd>MOUSE</kbd> MIRAR <small>o arrastrar</small></span>
+          <span class="on-foot-only"><kbd>ESPACIO</kbd> SALTAR</span>
+          <span class="on-foot-only"><kbd>SHIFT</kbd> CORRER</span>
+          <span class="on-foot-only"><kbd>E</kbd> INTERACTUAR</span>
+          <span class="rover-only"><kbd>ESPACIO</kbd> FRENAR</span>
+          <span class="rover-only"><kbd>E</kbd> ENTRAR / SALIR</span>
+          <span class="rover-only"><kbd>F</kbd> ESPECIFICACIONES</span>
+          <span><kbd>R</kbd> DATOS PLANETARIOS</span>
+          <span><kbd>M</kbd> MAPA</span>
+          <span><kbd>ESC</kbd> PAUSA</span>
+        </div>
+      </div>
+    </section>
+
+    <section id="mapScreen" class="modal-screen map-screen hidden" aria-modal="true" role="dialog" aria-labelledby="mapTitle">
+      <div class="map-panel">
+        <header class="map-header">
+          <div>
+            <p class="hud-kicker">CARTOGRAFÍA DE MISIÓN · ARCADIA PLANITIA</p>
+            <h2 id="mapTitle">Mapa de exploración</h2>
+            <p>AP-1 se sitúa en 47,2° N, 184,3° E (175,7° O), a una elevación regional estimada de −1,5 km. El recuadro NASA MOLA aporta contexto a ~463 m/px; las capas geológica y de hielo son esquemáticas, no mediciones del sitio.</p>
+          </div>
+          <button id="closeMapButton" class="close-button" type="button" aria-label="Cerrar mapa">×</button>
+        </header>
+        <div class="map-toolbar">
+          <div class="map-layers" role="group" aria-label="Capa cartográfica">
+            <button type="button" class="map-layer-button active" data-map-layer="topography" aria-pressed="true">TOPOGRÁFICA · MOLA</button>
+            <button type="button" class="map-layer-button" data-map-layer="geology" aria-pressed="false">GEOLOGÍA</button>
+            <button type="button" class="map-layer-button" data-map-layer="ice" aria-pressed="false">HIELO SUBTERRÁNEO</button>
+          </div>
+          <div class="map-actions">
+            <button id="mapZoomOut" type="button" aria-label="Alejar mapa">−</button>
+            <button id="mapZoomIn" type="button" aria-label="Acercar mapa">+</button>
+            <button id="mapCenterButton" type="button">CENTRAR</button>
+          </div>
+        </div>
+        <div class="map-view">
+          <canvas id="fullMapCanvas" width="1120" height="660" aria-label="Mapa topográfico interactivo de la exploración"></canvas>
+          <aside id="mapTooltip" class="map-tooltip hidden" role="note" aria-label="Información científica de Arcadia Planitia">
+            <p class="map-tooltip-kicker">LECTURA REGIONAL</p>
+            <strong id="mapTooltipCoordinates">47,2000° N · 184,3000° E · −1,5 km</strong>
+            <p><b>Suelo</b> Depósitos volcánicos y sedimentarios; relieve llano.</p>
+            <p><b>Recursos</b> Potencial de hielo subterráneo para producir agua, oxígeno y combustible; distribución ilustrativa.</p>
+            <p><b>Estabilidad</b> Relieve favorable para módulos y paneles solares; requiere evaluación geotécnica local.</p>
+          </aside>
+          <p id="mapDataStatus" class="map-data-status" role="status">Cargando mosaico cartográfico NASA…</p>
+        </div>
+        <div id="mapLayerLegend" class="map-layer-legend" aria-label="Leyenda de la capa cartográfica"></div>
+        <footer class="map-footer">
+          <span id="mapCoordinates">AP-1 · 47,2000° N · 184,3000° E · −1,5 km</span>
+          <span><a href="https://trek.nasa.gov/tiles/apidoc/trekAPI.html?body=mars" target="_blank" rel="noreferrer">NASA / Mars Global Surveyor · instrumento MOLA</a> · producto: Mars_MGS_MOLA_ClrShade_merge_global_463m · cobertura global; tesela EQ de Arcadia Planitia · ~463 m/px · mosaico sin fecha única · WMTS nivel 7</span>
+          <span class="map-key"><i class="legend-base"></i> BASE AP-1 <i class="legend-player"></i> EXPLORADOR <i class="legend-rover"></i> ROVER <i class="legend-sample"></i> MUESTRAS <i class="legend-visited"></i> ZONAS VISITADAS <i class="legend-poi"></i> PUNTOS DE INTERÉS</span>
+          <span>Arrastra para desplazar · rueda o botones para zoom · clic en el mapa para consultar coordenadas</span>
+        </footer>
+      </div>
+    </section>
+
+    <section id="environmentScreen" class="modal-screen environment-screen hidden" aria-modal="true" role="dialog" aria-labelledby="environmentTitle">
+      <div class="modal-card environment-card">
+        <button id="closeEnvironmentButton" class="close-button" type="button" aria-label="Cerrar información planetaria">×</button>
+        <p class="hud-kicker">TELEMETRÍA · SOL <span id="environmentSol">001</span></p>
+        <h2 id="environmentTitle">INFORMACIÓN PLANETARIA</h2>
+        <div class="environment-grid">
+          <section class="environment-section">
+            <h3>DATOS GENERALES</h3>
+            <dl>
+              <div><dt>Planeta</dt><dd>Marte</dd></div>
+              <div><dt>Región</dt><dd>Arcadia Planitia</dd></div>
+              <div><dt>Coordenadas</dt><dd id="environmentCoordinates">47,2000° N · 184,3000° E</dd></div>
+              <div><dt>Elevación regional estimada</dt><dd id="environmentAltitude">−1,5 km</dd></div>
+              <div><dt>Gravedad</dt><dd>3,71 m/s² <small>referencia planetaria</small></dd></div>
+              <div><dt>Duración de un sol</dt><dd>24 h 39 min 35 s</dd></div>
+            </dl>
+          </section>
+          <section class="environment-section">
+            <h3>CONDICIONES AMBIENTALES</h3>
+            <dl>
+              <div><dt>Temperatura</dt><dd id="environmentTemperature">—</dd></div>
+              <div><dt>Presión</dt><dd id="environmentPressure">—</dd></div>
+              <div><dt>Atmósfera</dt><dd>95,3% CO₂ · 2,7% N₂ · 1,6% Ar</dd></div>
+              <div><dt>Iluminación</dt><dd>Diurna · modelo de misión</dd></div>
+              <div><dt>Radiación</dt><dd>Sin medición local disponible</dd></div>
+            </dl>
+          </section>
+          <section class="environment-section">
+            <h3>ESTADO DE MISIÓN</h3>
+            <dl>
+              <div><dt>Tiempo transcurrido</dt><dd id="environmentElapsed">00:00</dd></div>
+              <div><dt>Distancia a AP-1</dt><dd id="environmentBaseDistance">—</dd></div>
+              <div><dt>Traje EVA</dt><dd id="environmentSuit">ESTABLE</dd></div>
+              <div><dt>Oxígeno</dt><dd id="environmentOxygen">100%</dd></div>
+              <div><dt>Energía</dt><dd id="environmentBattery">100%</dd></div>
+            </dl>
+          </section>
+          <section class="environment-section weather-section">
+            <h3>ESTADO METEOROLÓGICO · SIMULACIÓN DE MISIÓN</h3>
+            <dl>
+              <div><dt>Condición</dt><dd id="weatherCondition">—</dd></div>
+              <div><dt>Viento</dt><dd id="weatherWind">—</dd></div>
+              <div><dt>Visibilidad</dt><dd id="weatherVisibility">—</dd></div>
+              <div><dt>Polvo atmosférico</dt><dd id="weatherDust">—</dd></div>
+              <div><dt>Nivel de alerta</dt><dd id="weatherAlert">—</dd></div>
+              <div><dt>Pronóstico</dt><dd id="weatherCountdown">—</dd></div>
+              <div><dt>Intensidad prevista</dt><dd id="weatherIntensity">—</dd></div>
+              <div><dt>Recomendación</dt><dd id="weatherRecommendation">—</dd></div>
+            </dl>
+          </section>
+        </div>
+        <p class="environment-provenance">
+          Estimaciones ambientales de referencia marciana; no son mediciones de AP-1.
+          <a href="https://science.nasa.gov/mars/facts/" target="_blank" rel="noreferrer">Gravedad y duración del sol: NASA Mars Facts.</a>
+          Referencias instrumentales: <a href="https://mars.nasa.gov/mars2020/spacecraft/instruments/meda/" target="_blank" rel="noreferrer">MEDA</a> y
+          <a href="https://mars.nasa.gov/msl/spacecraft/instruments/rems/" target="_blank" rel="noreferrer">REMS</a>; el juego no recibe telemetría meteorológica en vivo.
+          Temperatura y presión: modelo simplificado de misión.
+          Radiación: sin dato local modelado.
+          El pronóstico y sus eventos son parámetros deterministas del videojuego; no son predicciones meteorológicas de NASA ni lecturas MEDA/REMS.
+          La niebla durante la tormenta está intensificada visualmente y no representa a escala la visibilidad simulada indicada.
+        </p>
+        <button id="environmentDoneButton" class="secondary-button" type="button">CERRAR · R / ESC</button>
+      </div>
+    </section>
+
+    <section id="pauseScreen" class="modal-screen hidden" aria-modal="true" role="dialog" aria-labelledby="pauseTitle">
+      <div class="modal-card pause-card">
+        <p class="hud-kicker">MISIÓN EN PAUSA</p>
+        <h2 id="pauseTitle">Tómate un respiro, explorador.</h2>
+        <p>La superficie marciana seguirá aquí. Pulsa continuar para volver al traje.</p>
+        <div class="pause-actions">
+          <button id="resumeButton" class="start-button" type="button">CONTINUAR MISIÓN</button>
+          <button id="returnHomeButton" class="home-button" type="button">VOLVER AL INICIO</button>
+        </div>
+        <div class="pause-controls">WASD mover <span>·</span> Ratón mirar <span>·</span> E interactuar</div>
+      </div>
+    </section>
+
+    <section id="terminalScreen" class="modal-screen hidden" aria-modal="true" role="dialog" aria-labelledby="terminalTitle">
+      <div class="modal-card terminal-card">
+        <button id="closeTerminalButton" class="close-button" type="button" aria-label="Cerrar terminal">×</button>
+        <p class="hud-kicker">TERMINAL DE LA BASE · AP-1</p>
+        <h2 id="terminalTitle">Hábitat principal</h2>
+        <p class="terminal-lead">INFORME DE SELECCIÓN DEL SITIO</p>
+        <p>
+          Arcadia Planitia se eligió como región de estudio por combinar una superficie relativamente llana,
+          materiales de origen volcánico y sedimentario, y evidencias orbitales de hielo de agua enterrado.
+        </p>
+        <section class="terminal-fact terminal-site-report">
+          <span class="fact-icon">◈</span>
+          <div>
+            <h3>¿POR QUÉ AP-1?</h3>
+            <p><strong>Superficie:</strong> las llanuras reducen los riesgos del aterrizaje y facilitan orientar paneles solares.</p>
+            <p><strong>Geología:</strong> depósitos volcánicos y sedimentarios ofrecen un registro diverso para investigar la historia de Marte.</p>
+            <p><strong>Recursos:</strong> observaciones orbitales indican hielo de agua enterrado en la región, un recurso potencial para futuras misiones.</p>
+            <p class="terminal-site-caveat">Son criterios regionales de selección; no confirman la composición ni la estabilidad geotécnica del punto exacto de AP-1.</p>
+          </div>
+        </section>
+        <div class="terminal-fact">
+          <span class="fact-icon">◈</span>
+          <p><strong>Dato de Marte</strong><br />La atmósfera marciana es muy tenue y está compuesta principalmente por dióxido de carbono. El traje espacial mantiene presión, oxígeno y temperatura adecuados.</p>
+        </div>
+        <section class="terminal-weather">
+          <h3>CANAL METEOROLÓGICO · EXTERIOR</h3>
+          <p id="terminalWeather">Esperando telemetría meteorológica.</p>
+        </section>
+        <p class="terminal-note">Consulta las investigaciones con J. Cuando recojas rocas, tráelas al laboratorio y analiza las muestras para avanzar en el programa científico.</p>
+        <button id="leaveTerminalButton" class="secondary-button" type="button">VOLVER A LA EXPLORACIÓN</button>
+      </div>
+    </section>
+
+    <section id="labScreen" class="modal-screen lab-screen hidden" aria-modal="true" role="dialog" aria-labelledby="labTitle">
+      <div class="lab-panel">
+        <header class="lab-header">
+          <div>
+            <p class="hud-kicker">LABORATORIO · AP-1</p>
+            <h2 id="labTitle">Analizador geológico</h2>
+            <p>Selecciona una muestra y el instrumento. Los resultados siguen los datos de composición guardados para esa roca.</p>
+          </div>
+          <button id="closeLabButton" class="close-button" type="button" aria-label="Cerrar laboratorio">×</button>
+        </header>
+        <div class="lab-layout">
+          <aside class="lab-inventory">
+            <div class="lab-subheading"><span>INVENTARIO</span><strong id="sampleCount">0 muestras</strong></div>
+            <div id="sampleInventory" class="sample-inventory"></div>
+            <p id="emptyInventory" class="empty-inventory">Aún no hay muestras. Recoge una roca identificada en la superficie.</p>
+          </aside>
+          <div class="lab-workspace">
+            <div class="sample-viewer">
+              <canvas id="sampleCanvas" aria-label="Visor tridimensional de la muestra"></canvas>
+              <div id="laserScan" class="laser-scan hidden" aria-hidden="true"></div>
+              <span id="sampleTerrainTag" class="sample-terrain-tag hidden"></span>
+              <div id="viewerPlaceholder" class="viewer-placeholder">Selecciona una muestra para colocarla en la mesa de análisis.</div>
+              <div class="viewer-actions">
+                <button type="button" data-view="front">FRENTE</button>
+                <button type="button" data-view="side">LADO</button>
+                <button type="button" data-view="top">SUPERIOR</button>
+                <button id="viewerLightButton" type="button">LUZ</button>
+                <button id="viewerMarkerButton" type="button">PUNTO CLAVE</button>
+              </div>
+              <div class="viewer-label">VISOR 3D <span>ARRASTRA · RUEDA PARA ZOOM</span></div>
+            </div>
+            <div class="lab-toolbar">
+              <div id="instrumentControls" class="instrument-controls">
+                <button type="button" class="instrument-button active" data-instrument="visual">VISUAL</button>
+                <button type="button" class="instrument-button" data-instrument="xrf">FLUORESCENCIA X</button>
+                <button type="button" class="instrument-button" data-instrument="raman">RAMAN</button>
+                <button type="button" class="instrument-button" data-instrument="infrared">INFRARROJO</button>
+              </div>
+              <button id="analyzeButton" class="analyze-button" type="button" disabled>INICIAR ANÁLISIS</button>
+            </div>
+            <div id="analysisResult" class="analysis-result" aria-live="polite">
+              <span class="result-placeholder">Elige una muestra y usa un instrumento para comenzar.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="journalScreen" class="modal-screen hidden" aria-modal="true" role="dialog" aria-labelledby="journalTitle">
+      <div class="modal-card journal-card">
+        <button id="closeJournalButton" class="close-button" type="button" aria-label="Cerrar investigaciones">×</button>
+        <p class="hud-kicker">PROGRAMA CIENTÍFICO · TABLETA DE CAMPO</p>
+        <h2 id="journalTitle">Investigaciones de misión</h2>
+        <p class="journal-intro">Completa actividades de exploración para desbloquear las cuatro etapas y sus investigaciones.</p>
+        <div class="journal-summary">
+          <span><strong id="journalSampleCount">0</strong> muestras</span>
+          <span><strong id="journalAnalysisCount">0</strong> análisis</span>
+          <span><strong id="journalMissionStatus">0/4</strong> etapas disponibles</span>
+        </div>
+        <div id="journalEntries" class="journal-entries"></div>
+        <section class="weather-history">
+          <h3>REGISTRO METEOROLÓGICO</h3>
+          <div id="weatherHistory"><p>Sin eventos meteorológicos registrados.</p></div>
+        </section>
+        <button id="closeJournalFooter" class="secondary-button" type="button">VOLVER AL MUNDO</button>
+      </div>
+    </section>
+
+    <script type="module" src="script.js"></script>
+  </body>
+</html>

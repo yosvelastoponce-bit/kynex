@@ -4,13 +4,15 @@ const EYE_HEIGHT = 1.7
 const GRAVITY = 1.62
 
 export class PlayerController {
-  constructor(camera, element, onLockChange, onControlMode, environment, onBoundary = () => {}) {
+  constructor(camera, element, onLockChange, onControlMode, environment, onBoundary = () => {}, onJump = () => {}) {
     this.camera = camera
     this.element = element
     this.onLockChange = onLockChange
     this.onControlMode = onControlMode
     this.environment = environment
     this.onBoundary = onBoundary
+    this.onJump = onJump
+    this.flight = null
     this.keys = new Set()
     this.velocity = new THREE.Vector3()
     this.verticalVelocity = 0
@@ -32,6 +34,9 @@ export class PlayerController {
       if (event.code === 'Space' && (this.locked || this.fallback) && this.onGround) {
         this.verticalVelocity = 2.55
         this.onGround = false
+        this.flight = { start: performance.now(), ground: this.environment.groundHeightAt(camera.position.x, camera.position.z),
+          highest: camera.position.y - EYE_HEIGHT }
+        this.onJump({ type: 'takeoff', x: camera.position.x, z: camera.position.z })
       }
     }
     this.handleKeyUp = (event) => this.keys.delete(event.code)
@@ -86,6 +91,7 @@ export class PlayerController {
     this.velocity.set(0, 0, 0)
     this.verticalVelocity = 0
     this.onGround = true
+    this.flight = null
     this.yaw = yaw
     this.pitch = -0.19
     this.camera.position.set(x, sampleHeight(x, z) + EYE_HEIGHT, z)
@@ -128,8 +134,17 @@ export class PlayerController {
     this.camera.position.z = next.z
     this.verticalVelocity -= GRAVITY * dt
     this.camera.position.y += this.verticalVelocity * dt
+    if (this.flight) this.flight.highest = Math.max(this.flight.highest, this.camera.position.y - EYE_HEIGHT)
     const ground = this.environment.groundHeightAt(this.camera.position.x, this.camera.position.z) + EYE_HEIGHT
     if (this.camera.position.y <= ground) {
+      if (!this.onGround && this.flight) {
+        const duration = (performance.now() - this.flight.start) / 1000
+        const height = this.flight.highest - this.flight.ground
+        if (duration > 0.2 && duration < 8 && height > 0.1 && Math.abs(ground - EYE_HEIGHT - this.flight.ground) < 0.6)
+          this.onJump({ type: 'landing', duration, height, gravity: GRAVITY })
+        else this.onJump({ type: 'invalid' })
+        this.flight = null
+      }
       this.camera.position.y = ground
       this.verticalVelocity = 0
       this.onGround = true

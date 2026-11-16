@@ -9,6 +9,9 @@ import { LifeSupportSystem } from './LifeSupportSystem.js'
 import { Mission02 } from './Mission02.js'
 import { equalizeAtmospheres } from './AtmosphereModel.js'
 import { LunarSampleMission } from './LunarSampleMission.js'
+import { LaboratorySystem } from './laboratory/LaboratorySystem.js'
+import { createLaboratoryVisual } from './laboratory/LaboratoryVisual.js'
+import { LAB_LAYOUT, LAB_STATIONS, inLaboratory } from './laboratory/LaboratoryLayout.js'
 
 export class LunarBaseSystem {
   constructor(scene, { sampleHeight = heightAt, origin = OUTPOST, bounds = null } = {}) {
@@ -19,11 +22,14 @@ export class LunarBaseSystem {
     this.airlock = new AirlockSystem()
     this.mission = new BaseMission()
     this.sampleMission = new LunarSampleMission()
-    this.eclss = new LifeSupportSystem()
+    this.eclss = new LifeSupportSystem({ batteryDischargeW: 5000, cabinVolumeM3: 100 + LAB_LAYOUT.volumeM3 })
+    this.laboratory = new LaboratorySystem(this.eclss)
     this.mission02 = new Mission02()
     this.discoveries = { sample: false, garden: false, observatory: false }
     this.model = createLunarBaseModel(this.floorY, sampleHeight, origin)
     scene.add(this.model.root)
+    this.labVisual = createLaboratoryVisual(scene,origin,this.floorY)
+    this.ready = this.labVisual.ready
     this.message = 'Busque KYNEX OUTPOST 01 e inspeccione sus instalaciones.'
     this.lastZone = 'surface'
   }
@@ -39,6 +45,16 @@ export class LunarBaseSystem {
   zoneAt(x, z) { return baseZone(x, z, this.origin) }
   nearby(position, direction = null) {
     const p = localBasePosition(position.x, position.z, this.origin)
+    if (inLaboratory(p.x,p.z)) {
+      let best=null
+      for (const station of LAB_STATIONS) {
+        const d=Math.hypot(p.x-station.x,p.z-station.z)
+        if(d>1.65)continue
+        if(direction&&d>.1&&(direction.x*(station.x-p.x)+direction.z*(station.z-p.z))/(Math.hypot(direction.x,direction.z)*d||1)<.3)continue
+        if(!best||d<best.distance)best={id:station.id,label:station.label,distance:d}
+      }
+      return best
+    }
     if (['carried', 'delivered'].includes(this.sampleMission?.status)) {
       const lab = BASE_TARGETS.find(target => target.id === 'sample-lab')
       const distance = Math.hypot(p.x - lab.x, p.z - lab.z)
@@ -60,6 +76,8 @@ export class LunarBaseSystem {
   interact(position, direction = null) {
     const near = this.nearby(position, direction)
     if (!near) { this.message = 'Acérquese a una instalación para interactuar.'; return { message: this.message } }
+    const station = LAB_STATIONS.find(item => item.id === near.id)
+    if (station) return {message:`${station.label}: KYNEX RESOURCE LAB 01`,sampleLab:true,resourceTab:station.tab}
     const target = BASE_TARGETS.find(item => item.id === near.id)
     const p = localBasePosition(position.x, position.z, this.origin)
     if (target.kind === 'door') {
@@ -83,7 +101,7 @@ export class LunarBaseSystem {
       if (result.accepted) this.eclss.onAirlockTransition(before, this.airlock.state)
       this.message = result.message
       if (result.accepted) this.mission.complete('airlock')
-      return { message: result.message }
+      return { message: result.message, discovery: result.accepted ? 'airlock' : null }
     }
     if (target.kind === 'eclss') {
       this.mission02.complete('console')
@@ -131,11 +149,12 @@ export class LunarBaseSystem {
       this.message = 'Acérquese a una instalación y pulse F para conocerla.'
       return { message: this.message }
     }
+    if (LAB_STATIONS.some(item=>item.id===near.id)) return {message:'Pulsa E para abrir el instrumento del laboratorio.'}
     const target = BASE_TARGETS.find(item => item.id === near.id)
     const info = BASE_KNOWLEDGE[target.infoId]
     this.mission.complete(target.infoId)
     this.message = `Inspección: ${info.name}.`
-    return { message: this.message, info }
+    return { message: this.message, info, infoId: target.infoId }
   }
   completeSampleAnalysis(selectedMinerals) {
     const result = this.sampleMission.analyze(selectedMinerals)
@@ -165,6 +184,7 @@ export class LunarBaseSystem {
   update(dt, solar, position, deltaDays = 0, exteriorCelsius = -150) {
     this.lastPosition = position
     this.eclss.update(deltaDays, solar, exteriorCelsius)
+    this.laboratory?.update()
     const before = this.airlock.state
     const changed = this.airlock.update(deltaDays * 86_400)
     if (changed) { this.eclss.onAirlockTransition(before, this.airlock.state); this.message = changed.message }
@@ -197,7 +217,8 @@ export class LunarBaseSystem {
         remaining: this.airlock.remaining },
       mission, mission02: this.mission02.snapshot(),
       discoveries: { ...this.discoveries }, sampleMission: this.sampleMission.snapshot(),
+      laboratory: this.laboratory?.snapshot(),
       eclss: this.eclss.snapshot(), message: this.message }
   }
-  dispose(scene) { scene.remove(this.model.root); this.model.dispose() }
+  dispose(scene) { this.labVisual?.dispose(); scene.remove(this.model.root); this.model.dispose() }
 }

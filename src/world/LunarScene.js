@@ -14,7 +14,7 @@ import { createStars } from './StarField.js'
 import { SITE04_OUTPOST } from './BasePlacement.js'
 
 export class LunarScene {
-  constructor(container, terrain, { onLockChange, onControlMode, onTelemetry, onSolarState, onEarthState, onThermalState, onRadiationState, onRadiationInspect, onBaseState, onBaseInfo, onBaseMessage, onEclssControl, onSampleLab, onBoundary }) {
+  constructor(container, terrain, { onLockChange, onControlMode, onTelemetry, onSolarState, onEarthState, onThermalState, onRadiationState, onRadiationInspect, onBaseState, onBaseInfo, onBaseMessage, onBaseInteraction, onEclssControl, onSampleLab, onBoundary, onJump, onMissionTick }) {
     this.container = container
     this.onTelemetry = onTelemetry
     this.onSolarState = onSolarState
@@ -25,13 +25,31 @@ export class LunarScene {
     this.onBaseState = onBaseState
     this.onBaseInfo = onBaseInfo
     this.onBaseMessage = onBaseMessage
+    this.onBaseInteraction = onBaseInteraction
+    this.onMissionTick = onMissionTick
+    this.missionActive = false
     this.onEclssControl = onEclssControl
     this.onSampleLab = onSampleLab
     this.onBoundary = onBoundary
     this.siteTerrain = terrain
+    this.scene = new THREE.Scene()
+    const targetOptions = [[0, 11], [2, 10], [-2, 10]]
+    const [markerX, markerZ] = targetOptions.find(([x, z]) => terrain.slopeAt(x, z) < 10) ?? targetOptions[0]
+    this.trainingTarget = { x: markerX, z: markerZ }
+    const marker = new THREE.Group()
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.85, 0.045, 6, 36),
+      new THREE.MeshBasicMaterial({ color: 0x9df0c6 }))
+    ring.rotation.x = Math.PI / 2
+    ring.position.y = 0.12
+    const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 1.8, 6),
+      new THREE.MeshBasicMaterial({ color: 0x9df0c6 }))
+    mast.position.y = 0.9
+    marker.add(ring, mast)
+    marker.position.set(markerX, terrain.heightAt(markerX, markerZ), markerZ)
+    this.trainingMarker = marker
+    this.scene.add(marker)
     this.controlPanelOpen = false
     this.sampleLabOpen = false
-    this.scene = new THREE.Scene()
     this.scene.background = new THREE.Color(0x030609)
     this.camera = new THREE.PerspectiveCamera(74, 1, 0.05, 16_000)
     this.scene.add(this.camera)
@@ -63,6 +81,7 @@ export class LunarScene {
       sampleHeight: terrain.heightAt, origin: SITE04_OUTPOST, bounds: terrain.bounds,
     })
     this.clock = new SimulationClock()
+    this.clock.setRate('pause')
     this.thermal = new ThermalSystem({ sampleHeight: terrain.heightAt })
     this.surfaceTemperatureC = this.thermal.telemetryAt(this.camera.position.x, this.camera.position.z, this.clock.days).celsius
     this.radiation = new RadiationSystem({ sampleHeight: terrain.heightAt })
@@ -71,8 +90,8 @@ export class LunarScene {
     this.earthVisual = createEarthVisual(this.scene)
     this.earth = earthState(this.clock.days, this.solar)
     this.onSolarState(this.solar)
-    this.controller = new PlayerController(this.camera, this.renderer.domElement, onLockChange, onControlMode, this.base, onBoundary)
-    this.controller.setStartPosition(0, 18, terrain.heightAt, 0)
+    this.controller = new PlayerController(this.camera, this.renderer.domElement, onLockChange, onControlMode, this.base, onBoundary, onJump)
+    this.controller.setStartPosition(0, 0, (x, z) => this.base.groundHeightAt(x, z), 0)
     this.onBaseState(this.base.snapshot(this.camera.position))
     this.onEarthState({ ...this.earth, visibility: earthVisibility(this.camera.position, this.earth, terrain.heightAt, terrain.bounds) })
     this.onThermalState(this.thermal.telemetryAt(this.camera.position.x, this.camera.position.z, this.clock.days))
@@ -91,6 +110,7 @@ export class LunarScene {
       const direction = this.camera.getWorldDirection(new THREE.Vector3())
       const result = this.base.interact(this.camera.position, direction)
       this.onBaseMessage?.(result.message)
+      this.onBaseInteraction?.(result)
       if (result.control) {
         this.controlPanelOpen = true
         this.releaseControls()
@@ -99,7 +119,7 @@ export class LunarScene {
       if (result.sampleLab) {
         this.sampleLabOpen = true
         this.releaseControls()
-        this.onSampleLab(true)
+        this.onSampleLab(true, result.resourceTab ?? 'register')
       }
       this.onBaseState(this.base.snapshot(this.camera.position, direction))
       event.preventDefault()
@@ -116,16 +136,56 @@ export class LunarScene {
     this.lastEarthSample = this.lastTime
     this.lastRadiationSample = this.lastTime
     this.frames = 0
+    this.missionHoursBuffer = 0
     this.frame = this.frame.bind(this)
     this.frameId = requestAnimationFrame(this.frame)
   }
 
   start() { this.controller.start() }
+  setTrainingMarkerVisible(visible) { this.trainingMarker.visible = visible }
   releaseControls() { this.controller.release() }
-  setSolarSpeed(key) { this.clock.setRate(key) }
+  setSolarSpeed(key) { this.clock.setRate(this.missionActive && key !== 'pause' ? 'mission' : key) }
+  startMission() { this.missionActive = true; this.clock.setRate('mission') }
+  setIncidentLoad(active) {
+    this.base.eclss.setScienceFault(active ? 1600 : 0)
+    if (active) this.base.eclss.setDevice('science', true)
+    this.onBaseState(this.base.snapshot(this.camera.position))
+  }
+  serializeMissionWorld() {
+    return { clockDays: this.clock.days, eclss: this.base.eclss.serialize(),
+      laboratory: this.base.laboratory.serialize(),
+      sampleStatus: this.base.sampleMission.status, discoveries: { ...this.base.discoveries },
+      airlock: { state: this.base.airlock.state, remaining: this.base.airlock.remaining },
+      position: { x: this.camera.position.x, z: this.camera.position.z, yaw: this.controller.yaw } }
+  }
+  restoreMissionWorld(saved) {
+    if (!saved || !Number.isFinite(saved.clockDays) || !this.base.eclss.restore(saved.eclss)) return false
+    this.clock.days = Math.max(0, saved.clockDays)
+    if (!this.base.laboratory.restore(saved.laboratory)) this.base.eclss.setLaboratoryPower(0)
+    if (['field', 'carried', 'delivered', 'analyzed'].includes(saved.sampleStatus)) this.base.sampleMission.status = saved.sampleStatus
+    for (const key of Object.keys(this.base.discoveries)) this.base.discoveries[key] = saved.discoveries?.[key] === true
+    const allowed = ['sealed-pressurized', 'sealed-vacuum', 'interior-open', 'exterior-open', 'cycling-to-pressure', 'cycling-to-vacuum']
+    if (allowed.includes(saved.airlock?.state)) {
+      this.base.airlock.state = saved.airlock.state
+      this.base.airlock.remaining = Math.max(0, Number(saved.airlock.remaining) || 0)
+    }
+    const { x, z, yaw } = saved.position ?? {}
+    if (Number.isFinite(x) && Number.isFinite(z) && x > this.terrain.bounds.minX && x < this.terrain.bounds.maxX
+      && z > this.terrain.bounds.minZ && z < this.terrain.bounds.maxZ) {
+      this.controller.setStartPosition(x, z, (px, pz) => this.base.groundHeightAt(px, pz), Number.isFinite(yaw) ? yaw : 0)
+    }
+    this.onBaseState(this.base.snapshot(this.camera.position))
+    return true
+  }
   controlEclss(action, value) { this.onBaseState(this.base.controlEclss(action, value)) }
   closeEclssControl() { this.controlPanelOpen = false }
   closeSampleLab() { this.sampleLabOpen = false }
+  laboratoryAction(action,payload) {
+    if(!this.sampleLabOpen)return false
+    const result=this.base.laboratory.action(action,payload,this.base.sampleMission.status)
+    this.onBaseState(this.base.snapshot(this.camera.position))
+    return result
+  }
   completeSampleAnalysis(minerals) {
     const result = this.base.completeSampleAnalysis(minerals)
     const direction = this.camera.getWorldDirection(new THREE.Vector3())
@@ -140,7 +200,7 @@ export class LunarScene {
     this.onBaseState(this.base.snapshot(this.camera.position, direction))
     this.onBaseMessage?.(result.message)
     if (!result.info) return false
-    this.onBaseInfo(result.info)
+    this.onBaseInfo(result.info, result.infoId)
     this.releaseControls()
     return true
   }
@@ -188,13 +248,14 @@ export class LunarScene {
     const dt = Math.min(elapsed, 0.05)
     this.lastTime = time
     const previousDays = this.clock.days
-    this.clock.update(elapsed)
+    this.clock.update(this.missionActive ? Math.min(elapsed, 0.1) : elapsed)
     const deltaDays = this.clock.days - previousDays
     this.solar = solarState(this.clock.days)
     this.earth = earthState(this.clock.days, this.solar)
     this.controller.update(dt)
     const position = this.camera.position
     const baseChanged = this.base.update(dt, this.solar, position, deltaDays, this.surfaceTemperatureC)
+    if (this.missionActive) this.missionHoursBuffer += deltaDays * 24
     this.sampleCarrier.visible = this.base.sampleMission.status === 'carried'
     this.radiation.update(this.clock.days, position.x, position.z)
     const terrainChanged = this.terrain.updateAround(position.x, position.z)
@@ -207,7 +268,12 @@ export class LunarScene {
     this.frames++
     if (time - this.lastSolarSample > 250) {
       this.onSolarState(this.solar)
-      this.onBaseState(this.base.snapshot(position, this.camera.getWorldDirection(new THREE.Vector3())))
+      const baseSnapshot = this.base.snapshot(position, this.camera.getWorldDirection(new THREE.Vector3()))
+      this.onBaseState(baseSnapshot)
+      if (this.missionActive && this.missionHoursBuffer > 0) {
+        this.onMissionTick?.(this.missionHoursBuffer, baseSnapshot, this.serializeMissionWorld())
+        this.missionHoursBuffer = 0
+      }
       this.lastSolarSample = time
     }
     if (time - this.lastEarthSample > 500) {
@@ -238,6 +304,8 @@ export class LunarScene {
     document.removeEventListener('keydown', this.handleRadiationKey)
     document.removeEventListener('keydown', this.handleBaseKey)
     this.base.dispose(this.scene)
+    this.scene.remove(this.trainingMarker)
+    this.trainingMarker.traverse(object => { object.geometry?.dispose(); object.material?.dispose() })
     this.camera.remove(this.sampleCarrier)
     this.sampleCarrier.traverse(object => {
       object.geometry?.dispose()

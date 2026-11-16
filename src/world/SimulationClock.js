@@ -1,5 +1,5 @@
 // Simulated Earth days advanced per real second.
-export const TIME_RATES = Object.freeze({ pause: 0, realtime: 1 / 86400, hour: 1 / 24, day: 1 })
+export const TIME_RATES = Object.freeze({ pause: 0, realtime: 1 / 86400, hour: 1 / 24, day: 1, mission: 72 / 86400 })
 
 export class SimulationClock {
   constructor() {

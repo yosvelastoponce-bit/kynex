@@ -1,0 +1,38 @@
+// Verbatim numerical transcription of ONE documented column, without normalization.
+// 10084 Table 2, Korotev & Gillis (2001), average; techniques: multiple, per compendium.
+const oxideRows = [
+  ['SiO2',42,0.2],['TiO2',7.54,0.08],['Al2O3',13.55,0.18],['FeO',15.81,0.15],
+  ['MnO',0.213,0.005],['MgO',7.88,0.07],['CaO',11.96,0.13],['Na2O',0.438,0.012],
+  ['K2O',0.135,0.005],['P2O5',0.101,0.017],
+]
+export const SAMPLE_CATALOG = Object.freeze([
+  { id:'10084', name:'Apollo 11 · suelo 10084', evidence:'OBSERVED', mission:'Apollo 11 · Mare Tranquillitatis',
+    type:'Suelo de regolito, fracción menor de 1 mm', registeredOrigin:'Colección Apollo; referencia terrestre. No recogido en Site04.',
+    appearance:'Polvo y granos finos; mezcla de fragmentos y vidrio de impacto. El color del visor es ilustrativo.',
+    minerals:['Plagioclasa','Minerales máficos','Fases opacas','Vidrio y aglutinados (no minerales individuales)'],
+    mineralNote:'Lista cualitativa de la fracción estudiada; no equivale a porcentajes de minerales en cada grano.',
+    chemistry:oxideRows.map(([oxide,value,uncertainty])=>({oxide,value,uncertainty,unit:'% masa de óxido',evidence:'OBSERVED',source:'soil'})),
+    chemistryMethod:'Promedio compilado de múltiples técnicas; Korotev y Gillis (2001), tabla 2 del Compendium. ± según la tabla; no se presupone aquí un nivel de confianza.',
+    sources:['soil'],photo:{id:'Fotografías y micrografías verificadas en el Compendium 10084',source:'soil'},
+  },
+  { id:'10003', name:'Apollo 11 · basalto 10003', evidence:'OBSERVED', mission:'Apollo 11 · Mare Tranquillitatis; punto de recogida no registrado',
+    type:'Basalto con ilmenita, bajo en K', registeredOrigin:'Muestra Apollo documentada; no representa una roca de Shackleton.',
+    appearance:'Roca de grano medio, con cavidades y cristales entrelazados; textura subofítica/ofítica.',
+    minerals:['Piroxenos','Plagioclasa','Ilmenita','Cristobalita en la mesostasis'],mineralNote:'Identificación de estudios petrográficos; no deducida del color del modelo.',
+    chemistry:[],chemistryMethod:'Datos cuantitativos no transcritos en este catálogo. Existen análisis en tablas 1a y 1b del PDF; consulta la fuente.',
+    sources:['basalt'],photo:{id:'NASA S76-25545 · 10003,25 · figura 1, p. 1 del PDF',source:'basalt'},
+  },
+  { id:'60025', name:'Apollo 16 · anortosita 60025', evidence:'OBSERVED', mission:'Apollo 16 · tierras altas de Descartes, cerca del módulo lunar',
+    type:'Anortosita ferroana cataclástica', registeredOrigin:'Muestra Apollo heterogénea; sus porciones no tienen la misma composición.',
+    appearance:'Interior blanco y gruesos granos fracturados; recubrimiento de vidrio oscuro y pequeños impactos en el exterior.',
+    minerals:['Plagioclasa cálcica dominante','Ortopiroxeno','Augita','Olivino en porciones máficas'],mineralNote:'La abundancia cambia entre las porciones descritas; no se aplica un porcentaje único a toda la roca.',
+    chemistry:[],chemistryMethod:'Datos cuantitativos no transcritos en este catálogo. El PDF distingue roca, minerales y porciones máficas; no se mezclan sus columnas.',
+    sources:['anorthosite'],photo:{id:'NASA S72-41586 · figura 1, p. 1 del PDF',source:'anorthosite'},
+  },
+  { id:'KYNEX-S04-001', name:'Tu roca · KYNEX-S04-001', evidence:'SCENARIO', mission:'Site04 · objeto ficticio de entrenamiento',
+    type:'Muestra virtual sin medición química', registeredOrigin:'Posición del juego. El DEM LOLA mide alturas; no identifica los minerales de esta roca.',
+    appearance:'Objeto gris de superficie rugosa y granos visibles en un modelo artístico.',
+    minerals:[],mineralNote:'Dato no disponible. Ni la inspección visual ni un mapa orbital prueban su composición.',
+    chemistry:[],chemistryMethod:'Dato no disponible: no hay ensayo elemental real de este objeto virtual.',sources:['m3'],photo:null,
+  },
+])
